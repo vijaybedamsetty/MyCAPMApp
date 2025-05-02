@@ -2,18 +2,22 @@ using { anubhav.db.master, anubhav.db.transaction } from '../db/datamodel';
 using { anubhav.common.CDSViews } from '../db/CDSViews';
 
 
-service CatalogService @(path:'CatalogService') {
+service CatalogService @(path:'CatalogService', requires: 'authenticated-user') {
 
 
-    entity EmployeeSet as projection on master.employees;
-
-    // entity OrderItems as projection on CDSViews.ItemView;
-    // entity Products as projection on CDSViews.ProductView;
+    //@readonly
+    entity EmployeeSet @(restrict:[
+        {grant: ['READ'], to: 'Viewer', where: 'bankName = $user.BankName'},
+        {grant: ['WRITE'], to: 'Admin'}
+    ])    
+    as projection on master.employees;
     entity AddressSet as projection on master.address;
     entity BusinessPartnerSet as projection on master.businesspartner;
     entity ProductSet as projection on master.product;
-    entity POs @odata.draft.enabled as projection on transaction.purchaseorder{
-     *,
+    entity POs @(
+        odata.draft.enabled: true
+     ) as projection on transaction.purchaseorder{
+        *,
         case OVERALL_STATUS
             when 'P' then 'Pending'
             when 'D' then 'Delivered'
@@ -27,14 +31,11 @@ service CatalogService @(path:'CatalogService') {
             when 'X' then 1
                 end as IconColor : Integer
     }
-
     actions{
         action boost() returns POs
     };
-
     entity POItems as projection on transaction.poitems;
 
 
     function getLargestOrder() returns POs;
-
 }
